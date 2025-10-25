@@ -1,34 +1,96 @@
-// 1. Importar o módulo Express
-const express = require('express');
-const cors = require('cors');
+const API_URL = 'http://localhost:3000/monstros';
 
-// 2. Criar uma instância do aplicativo Express
-const app = express();
-app.use(cors({ origin: '*' }));
+const listaMonstros = document.getElementById('listaMonstros');
+const btnLista = document.getElementById('lista');
+const btnAleatorio = document.getElementById('aleatorio');
+const filtroById = document.getElementById('filtro_by_id');
+const filtroTipo = document.getElementById('filtro_tipo');
+const filtroVidaMin = document.getElementById('filtro_vida_min');
+const filtroVidaMax = document.getElementById('filtro_vida_max');
+const filtroTexto = document.getElementById('filtro_texto');
+const btnFiltrar = document.getElementById('btn_filtrar');
 
-// 3. Definir a porta em que o servidor irá escutar
-// Usamos process.env.PORT para compatibilidade com ambientes de hospedagem (como Heroku)
-// ou a porta 3000 como padrão se a variável de ambiente não estiver definida.
-const PORT = process.env.PORT || 3000;
+async function carregarMonstros() {
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error('Erro');
+        return await response.json();
+    } catch (error) {
+        alert('Erro ao carregar monstros.');
+        return [];
+    }
+}
 
-// --- Dados Temporários em Memória ---
-// Agora os monstros são carregados de um arquivo JSON externo.
-const monstros = require('./monstros.json');
+function exibirMonstros(monstros) {
+    listaMonstros.innerHTML = '';
+    if (monstros.length === 0) {
+        listaMonstros.innerHTML = '<li>Nenhum monstro encontrado.</li>';
+        return;
+    }
+    monstros.forEach(monstro => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <h3>${monstro.nome}</h3>
+            <img src="${monstro.imagem}" alt="${monstro.nome}" style="max-width: 200px;">
+            <p>${monstro.descricao}</p>
+            <p><strong>Tipo:</strong> ${monstro.tipo_criatura}</p>
+            <p><strong>Vida:</strong> ${monstro.pontos_vida}</p>
+            <p><strong>Ataque:</strong> ${monstro.ataque}</p>
+            <p><strong>Defesa:</strong> ${monstro.defesa}</p>
+            <p><strong>Habitat:</strong> ${monstro.habitat}</p>
+        `;
+        listaMonstros.appendChild(li);
+    });
+}
 
-// --- Rotas da API ---
+function filtrarMonstros(monstros) {
+    let filtrados = monstros;
+    const id = filtroById.value.trim();
+    if (id) {
+        return monstros.filter(m => m.id == id);
+    }
+    const tipo = filtroTipo.value;
+    if (tipo) {
+        filtrados = filtrados.filter(m => m.tipo_criatura === tipo);
+    }
+    const vidaMin = parseInt(filtroVidaMin.value) || 0;
+    if (vidaMin > 0) {
+        filtrados = filtrados.filter(m => m.pontos_vida >= vidaMin);
+    }
+    const vidaMax = parseInt(filtroVidaMax.value) || Infinity;
+    if (vidaMax < Infinity) {
+        filtrados = filtrados.filter(m => m.pontos_vida <= vidaMax);
+    }
+    const texto = filtroTexto.value.toLowerCase().trim();
+    if (texto) {
+        filtrados = filtrados.filter(m => 
+            m.nome.toLowerCase().includes(texto) || 
+            m.descricao.toLowerCase().includes(texto)
+        );
+    }
+    return filtrados;
+}
 
-// Rota GET para listar todos os monstros
-// Quando alguém fizer uma requisição GET para a URL base + '/monstros'
-// (ex: http://localhost:3000/monstros), esta função será executada.
-app.get('/monstros', (req, res) => {
-    // Retorna a array de monstros como uma resposta JSON
-    res.json(monstros);
+btnLista.addEventListener('click', async () => {
+    const monstros = await carregarMonstros();
+    exibirMonstros(monstros);
 });
 
-// --- Iniciar o Servidor ---
+btnAleatorio.addEventListener('click', async () => {
+    const monstros = await carregarMonstros();
+    if (monstros.length > 0) {
+        const aleatorio = monstros[Math.floor(Math.random() * monstros.length)];
+        exibirMonstros([aleatorio]);
+    }
+});
 
-// Faz o aplicativo Express começar a "escutar" por requisições na porta definida.
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Acesse: http://localhost:${PORT}/monstros`);
+btnFiltrar.addEventListener('click', async () => {
+    const monstros = await carregarMonstros();
+    const filtrados = filtrarMonstros(monstros);
+    exibirMonstros(filtrados);
+});
+
+window.addEventListener('load', async () => {
+    const monstros = await carregarMonstros();
+    exibirMonstros(monstros);
 });
